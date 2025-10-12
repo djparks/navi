@@ -20,6 +20,8 @@ public class App {
     private static final String INVERSE_ON = "\u001b[7m";
     private static final String INVERSE_OFF = "\u001b[27m";
 
+        private record NaviItem(String title, String command) {}
+
     public static void main(String[] args) {
         try {
             new App().run();
@@ -31,7 +33,7 @@ public class App {
     }
 
     private void run() throws IOException {
-        List<String> items = loadItems();
+        List<NaviItem> items = loadItems();
         Terminal terminal = TerminalBuilder.builder()
                 .system(true)
                 .encoding(StandardCharsets.UTF_8)
@@ -43,7 +45,7 @@ public class App {
         try {
             int selected = 0;
             StringBuilder query = new StringBuilder();
-            List<String> filtered = filter(items, query.toString());
+            List<NaviItem> filtered = filter(items, query.toString());
             render(terminal, query.toString(), filtered, selected);
 
             while (true) {
@@ -54,10 +56,11 @@ public class App {
                 }
                 if (ch == '\r' || ch == '\n') { // Enter
                     if (!filtered.isEmpty()) {
-                        // Print selected item and exit
-                        // Need to restore terminal first
+                        // Execute selected command and exit
+                        NaviItem it = filtered.get(selected);
                         restoreTerminal(terminal, original);
-                        System.out.println(filtered.get(selected));
+                        int code = runCommand(it.command());
+                        System.exit(code);
                         return;
                     } else {
                         return;
@@ -195,42 +198,65 @@ public class App {
         }
     }
 
-    private List<String> loadItems() throws IOException {
+    private List<NaviItem> loadItems() throws IOException {
         Path dir = Paths.get(System.getProperty("user.home"), "navi");
         if (!Files.isDirectory(dir)) {
             return new ArrayList<>();
         }
-        List<String> items = new ArrayList<>();
+        List<NaviItem> items = new ArrayList<>();
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.navi")) {
             for (Path p : stream) {
                 List<String> lines = Files.readAllLines(p);
-                for (String line : lines) {
-                    if (line.matches("^#\\s+.*")) {
-                        items.add(line.trim());
+                String currentTitle = null;
+                for (int i = 0; i < lines.size(); i++) {
+                    String line = lines.get(i);
+                    if (line.matches("^#\\s+(.+)$")) {
+                        currentTitle = line.replaceFirst("^#\\s+", "").trim();
+                        // find first subsequent non-empty line as command
+                        String command = "";
+                        int j = i + 1;
+                        while (j < lines.size()) {
+                            String next = lines.get(j).trim();
+                            if (!next.isEmpty()) {
+                                command = next;
+                                break;
+                            }
+                            j++;
+                        }
+                        items.add(new NaviItem(currentTitle, command));
                     }
                 }
             }
         }
-        // Stable order by filename then by file order already preserved; for determinism sort by text
-        items = items.stream().sorted(Comparator.naturalOrder()).collect(Collectors.toList());
+        // Sort by title for determinism
+        items = items.stream().sorted(Comparator.comparing(NaviItem::title, Comparator.naturalOrder())).collect(Collectors.toList());
         return items;
     }
 
-    private List<String> filter(List<String> items, String q) {
+    private List<NaviItem> filter(List<NaviItem> items, String q) {
         if (q == null || q.isEmpty()) return items;
         String needle = q.toLowerCase(Locale.ROOT);
-        return items.stream().filter(s -> s.toLowerCase(Locale.ROOT).contains(needle)).collect(Collectors.toList());
+        return items.stream()
+                .filter(it -> it.title().toLowerCase(Locale.ROOT).contains(needle)
+                        || it.command().toLowerCase(Locale.ROOT).contains(needle))
+                .collect(Collectors.toList());
     }
 
-    private void render(Terminal terminal, String query, List<String> items, int selected) throws IOException {
+    private void render(Terminal terminal, String query, List<NaviItem> items, int selected) throws IOException {
         StringBuilder sb = new StringBuilder();
         sb.append(CLEAR_SCREEN).append(CURSOR_HOME);
         sb.append("Filter: ").append(query).append('\n');
+        int width = Math.max(20, terminal.getWidth());
+        String sep = " | ";
+        int sepLen = sep.length();
+        int titleWidth = Math.max(10, Math.min(50, (width - sepLen) / 2));
+        int cmdWidth = Math.max(10, width - sepLen - titleWidth);
         if (items.isEmpty()) {
             sb.append("(no matches)\n");
         } else {
             for (int i = 0; i < items.size(); i++) {
-                String line = items.get(i);
+                NaviItem it = items.get(i);
+                String line = fit(it.title(), titleWidth) + sep + fit(it.command(), cmdWidth);
                 if (i == selected) {
                     sb.append(INVERSE_ON).append(line).append(INVERSE_OFF);
                 } else {
@@ -243,7 +269,36 @@ public class App {
         terminal.writer().flush();
     }
 
-    private boolean isPrintable(int ch) {
+    private String fit(String s, int width) {
+            if (s == null) s = "";
+            if (width <= 0) return "";
+            if (s.length() == width) return s;
+            if (s.length() < width) {
+                // pad right with spaces
+                StringBuilder sb = new StringBuilder(width);
+                sb.append(s);
+                while (sb.length() < width) sb.append(' ');
+                return sb.toString();
+            }
+            // truncate with ellipsis if room
+            if (width <= 1) return s.substring(0, width);
+            return s.substring(0, width - 1) + "…";
+        }
+
+        private int runCommand(String command) {
+            try {
+                if (command == null || command.isBlank()) return 0;
+                ProcessBuilder pb = new ProcessBuilder("/bin/sh", "-lc", command);
+                pb.inheritIO();
+                Process p = pb.start();
+                return p.waitFor();
+            } catch (Exception e) {
+                System.err.println("Failed to run command: " + e.getMessage());
+                return 1;
+            }
+        }
+
+        private boolean isPrintable(int ch) {
         // accept basic ASCII printable characters including space
         return ch >= 32 && ch <= 126;
     }
