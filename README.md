@@ -48,10 +48,15 @@ rg "<pattern>" <path>
 
 Placeholders are indicated with angle brackets like `<pattern>` or `<path>`. When you press Enter on a selection that contains placeholders, the app will prompt you to input values which will be substituted into the command before execution.
 
+### Command-line options
+- -p: Print-only mode. When you press Enter on a command, navi will resolve any placeholders, print the final command to stdout, and exit without executing it.
+  - Unix/macOS: `java -jar target/navi.jar -p` or `./run-navi.sh -p`
+  - Windows: `java -jar target\navi.jar -p` or `run-navi.cmd -p`
+
 ### Navigation and keys
 - Type to filter the list.
 - Up/Down arrows to move selection.
-- Enter to run the selected command.
+- Enter to run the selected command (or print it when using -p).
 - Esc to exit without running.
 
 ## Cross-platform notes

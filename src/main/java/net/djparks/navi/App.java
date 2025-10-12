@@ -17,7 +17,13 @@ public class App {
 
     public static void main(String[] args) {
         try {
-            new App().run();
+            boolean printOnly = false;
+            if (args != null) {
+                for (String a : args) {
+                    if ("-p".equals(a)) { printOnly = true; break; }
+                }
+            }
+            new App().run(printOnly);
         } catch (Exception e) {
             // In case of any failure, do nothing special: exit non-zero with message to stderr
             System.err.println("navi error: " + e.getMessage());
@@ -25,7 +31,7 @@ public class App {
         }
     }
 
-    private void run() throws IOException {
+    private void run(boolean printOnly) throws IOException {
         List<NaviItem> items = ItemLoader.load(Paths.get(System.getProperty("user.home")));
         Renderer renderer = new Renderer();
         PlaceholderPrompter prompter = new PlaceholderPrompter();
@@ -64,11 +70,22 @@ public class App {
                                 System.err.println("Failed to read parameters: " + e.getMessage());
                                 return;
                             }
+                            if (printOnly) {
+                                System.out.println();
+                                System.out.println(command);
+                                System.exit(0);
+                                return;
+                            }
                             int code = runner.run(command);
                             System.exit(code);
                             return;
                         } else {
                             restoreTerminal(terminal, original);
+                            if (printOnly) {
+                                System.out.println(command);
+                                System.exit(0);
+                                return;
+                            }
                             int code = runner.run(command);
                             System.exit(code);
                             return;
