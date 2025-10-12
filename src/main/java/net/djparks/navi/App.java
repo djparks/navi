@@ -103,54 +103,12 @@ public class App {
                     }
                 }
                 if (ch == 127 || ch == 8) { // Backspace/Delete
-                    if (query.length() > 0) {
+                    if (!query.isEmpty()) {
                         query.setLength(query.length() - 1);
                         selected = 0;
                     }
                 } else if (ch == 0x1b) {
-                    // already handled above, but keep for completeness
-                    return;
-                } else if (ch == 0x1b) {
-                    return;
-                } else if (ch == 0x1b) {
-                    return;
-                } else if (ch == 0x1b) {
-                    return;
-                } else if (ch == 0x1b) {
-                    return;
-                } else if (ch == 0x1b) {
-                    return;
-                } else if (ch == 0x1b) {
-                    return;
-                } else if (ch == 0x1b) {
-                    return;
-                } else if (ch == 0x1b) {
-                    return;
-                } else if (ch == 0x1b) {
-                    return;
-                } else if (ch == 0x1b) {
-                    return;
-                } else if (ch == 0x1b) {
-                    return;
-                } else if (ch == 0x1b) {
-                    return;
-                } else if (ch == 0x1b) {
-                    return;
-                } else if (ch == 0x1b) {
-                    return;
-                } else if (ch == 0x1b) {
-                    return;
-                } else if (ch == 0x1b) {
-                    return;
-                } else if (ch == 0x1b) {
-                    return;
-                } else if (ch == 0x1b) {
-                    return;
-                } else if (ch == 0x1b) {
-                    return;
-                } else if (ch == 0x1b) {
-                    return;
-                } else if (ch == 0x1b) {
+                    // already handled above; exit on bare ESC for completeness
                     return;
                 } else if (ch == '[') {
                     // In raw mode, arrow keys generally come as ESC [ A/B/C/D. However, since we read char-by-char,
@@ -158,14 +116,6 @@ public class App {
                 } else if (isPrintable(ch)) {
                     query.append((char) ch);
                     selected = 0;
-                } else if (ch == 0x1b) {
-                    return;
-                } else if (ch == 0x1b) {
-                    return;
-                } else if (ch == 0x1b) {
-                    return;
-                } else if (ch == 0x1b) {
-                    return;
                 } else {
                     // Handle escape sequences for arrows
                     if (ch == 0x1b) {
