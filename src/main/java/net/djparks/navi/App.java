@@ -5,30 +5,15 @@ import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
 import org.jline.utils.NonBlockingReader;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.*;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class App {
-    private static final String CLEAR_SCREEN = "\u001b[2J";
-    private static final String CURSOR_HOME = "\u001b[H";
-    private static final String INVERSE_ON = "\u001b[7m";
-    private static final String INVERSE_OFF = "\u001b[27m";
 
-        private record NaviItem(String title, String command) {}
 
     public static void main(String[] args) {
         try {
@@ -41,7 +26,10 @@ public class App {
     }
 
     private void run() throws IOException {
-        List<NaviItem> items = loadItems();
+        List<NaviItem> items = ItemLoader.load(Paths.get(System.getProperty("user.home")));
+        Renderer renderer = new Renderer();
+        PlaceholderPrompter prompter = new PlaceholderPrompter();
+        CommandRunner runner = new CommandRunner();
         Terminal terminal = TerminalBuilder.builder()
                 .system(true)
                 .encoding(StandardCharsets.UTF_8)
@@ -54,7 +42,7 @@ public class App {
             int selected = 0;
             StringBuilder query = new StringBuilder();
             List<NaviItem> filtered = filter(items, query.toString());
-            render(terminal, query.toString(), filtered, selected);
+            renderer.render(terminal, query.toString(), filtered, selected);
 
             while (true) {
                 int ch = reader.read();
@@ -71,17 +59,17 @@ public class App {
                         if (command != null && command.contains("<") && command.contains(">")) {
                             restoreTerminal(terminal, original);
                             try {
-                                command = promptForPlaceholders(command);
+                                command = prompter.prompt(command);
                             } catch (IOException e) {
                                 System.err.println("Failed to read parameters: " + e.getMessage());
                                 return;
                             }
-                            int code = runCommand(command);
+                            int code = runner.run(command);
                             System.exit(code);
                             return;
                         } else {
                             restoreTerminal(terminal, original);
-                            int code = runCommand(command);
+                            int code = runner.run(command);
                             System.exit(code);
                             return;
                         }
@@ -110,7 +98,7 @@ public class App {
                         // re-render after handling arrows
                         filtered = filter(items, query.toString());
                         if (selected >= filtered.size()) selected = Math.max(0, filtered.size() - 1);
-                        render(terminal, query.toString(), filtered, selected);
+                        renderer.render(terminal, query.toString(), filtered, selected);
                         continue;
                     }
                 }
@@ -206,7 +194,7 @@ public class App {
 
                 filtered = filter(items, query.toString());
                 if (selected >= filtered.size()) selected = Math.max(0, filtered.size() - 1);
-                render(terminal, query.toString(), filtered, selected);
+                renderer.render(terminal, query.toString(), filtered, selected);
             }
         } finally {
             restoreTerminal(terminal, original);
@@ -221,40 +209,6 @@ public class App {
         }
     }
 
-    private List<NaviItem> loadItems() throws IOException {
-        Path dir = Paths.get(System.getProperty("user.home"), "navi");
-        if (!Files.isDirectory(dir)) {
-            return new ArrayList<>();
-        }
-        List<NaviItem> items = new ArrayList<>();
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.navi")) {
-            for (Path p : stream) {
-                List<String> lines = Files.readAllLines(p);
-                String currentTitle = null;
-                for (int i = 0; i < lines.size(); i++) {
-                    String line = lines.get(i);
-                    if (line.matches("^#\\s+(.+)$")) {
-                        currentTitle = line.replaceFirst("^#\\s+", "").trim();
-                        // find first subsequent non-empty line as command
-                        String command = "";
-                        int j = i + 1;
-                        while (j < lines.size()) {
-                            String next = lines.get(j).trim();
-                            if (!next.isEmpty()) {
-                                command = next;
-                                break;
-                            }
-                            j++;
-                        }
-                        items.add(new NaviItem(currentTitle, command));
-                    }
-                }
-            }
-        }
-        // Sort by title for determinism
-        items = items.stream().sorted(Comparator.comparing(NaviItem::title, Comparator.naturalOrder())).collect(Collectors.toList());
-        return items;
-    }
 
     private List<NaviItem> filter(List<NaviItem> items, String q) {
         if (q == null || q.isEmpty()) return items;
@@ -265,93 +219,9 @@ public class App {
                 .collect(Collectors.toList());
     }
 
-    private void render(Terminal terminal, String query, List<NaviItem> items, int selected) throws IOException {
-        StringBuilder sb = new StringBuilder();
-        sb.append(CLEAR_SCREEN).append(CURSOR_HOME);
-        sb.append("Filter: ").append(query).append('\n');
-        int width = Math.max(20, terminal.getWidth());
-        String sep = " | ";
-        int sepLen = sep.length();
-        int titleWidth = Math.max(10, Math.min(50, (width - sepLen) / 2));
-        int cmdWidth = Math.max(10, width - sepLen - titleWidth);
-        if (items.isEmpty()) {
-            sb.append("(no matches)\n");
-        } else {
-            for (int i = 0; i < items.size(); i++) {
-                NaviItem it = items.get(i);
-                String line = fit(it.title(), titleWidth) + sep + fit(it.command(), cmdWidth);
-                if (i == selected) {
-                    sb.append(INVERSE_ON).append(line).append(INVERSE_OFF);
-                } else {
-                    sb.append(line);
-                }
-                sb.append('\n');
-            }
-        }
-        terminal.writer().print(sb.toString());
-        terminal.writer().flush();
-    }
 
-    private String fit(String s, int width) {
-            if (s == null) s = "";
-            if (width <= 0) return "";
-            if (s.length() == width) return s;
-            if (s.length() < width) {
-                // pad right with spaces
-                StringBuilder sb = new StringBuilder(width);
-                sb.append(s);
-                while (sb.length() < width) sb.append(' ');
-                return sb.toString();
-            }
-            // truncate with ellipsis if room
-            if (width <= 1) return s.substring(0, width);
-            return s.substring(0, width - 1) + "…";
-        }
 
-        private String promptForPlaceholders(String command) throws IOException {
-            if (command == null) return null;
-            Pattern pattern = Pattern.compile("<([^<>]+)>");
-            Matcher m = pattern.matcher(command);
-            Set<String> names = new LinkedHashSet<>();
-            while (m.find()) {
-                String name = m.group(1).trim();
-                if (!name.isEmpty()) names.add(name);
-            }
-            if (names.isEmpty()) return command;
 
-            Map<String, String> values = new LinkedHashMap<>();
-            BufferedReader br = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
-            for (String name : names) {
-                System.out.print("Enter value for " + name + ": ");
-                System.out.flush();
-                String val = br.readLine();
-                if (val == null) val = "";
-                values.put(name, val);
-            }
-            // Replace all placeholders using collected values
-            m = pattern.matcher(command);
-            StringBuffer sb = new StringBuffer();
-            while (m.find()) {
-                String name = m.group(1).trim();
-                String val = values.getOrDefault(name, "");
-                m.appendReplacement(sb, Matcher.quoteReplacement(val));
-            }
-            m.appendTail(sb);
-            return sb.toString();
-        }
-
-        private int runCommand(String command) {
-            try {
-                if (command == null || command.isBlank()) return 0;
-                ProcessBuilder pb = new ProcessBuilder("/bin/sh", "-lc", command);
-                pb.inheritIO();
-                Process p = pb.start();
-                return p.waitFor();
-            } catch (Exception e) {
-                System.err.println("Failed to run command: " + e.getMessage());
-                return 1;
-            }
-        }
 
         private boolean isPrintable(int ch) {
         // accept basic ASCII printable characters including space
