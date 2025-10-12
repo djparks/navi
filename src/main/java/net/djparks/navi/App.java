@@ -5,14 +5,22 @@ import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
 import org.jline.utils.NonBlockingReader;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class App {
     private static final String CLEAR_SCREEN = "\u001b[2J";
@@ -56,12 +64,27 @@ public class App {
                 }
                 if (ch == '\r' || ch == '\n') { // Enter
                     if (!filtered.isEmpty()) {
-                        // Execute selected command and exit
+                        // Execute selected command and exit (with placeholder prompting if needed)
                         NaviItem it = filtered.get(selected);
-                        restoreTerminal(terminal, original);
-                        int code = runCommand(it.command());
-                        System.exit(code);
-                        return;
+                        String command = it.command();
+                        // Check for placeholders like <name>
+                        if (command != null && command.contains("<") && command.contains(">")) {
+                            restoreTerminal(terminal, original);
+                            try {
+                                command = promptForPlaceholders(command);
+                            } catch (IOException e) {
+                                System.err.println("Failed to read parameters: " + e.getMessage());
+                                return;
+                            }
+                            int code = runCommand(command);
+                            System.exit(code);
+                            return;
+                        } else {
+                            restoreTerminal(terminal, original);
+                            int code = runCommand(command);
+                            System.exit(code);
+                            return;
+                        }
                     } else {
                         return;
                     }
@@ -283,6 +306,38 @@ public class App {
             // truncate with ellipsis if room
             if (width <= 1) return s.substring(0, width);
             return s.substring(0, width - 1) + "…";
+        }
+
+        private String promptForPlaceholders(String command) throws IOException {
+            if (command == null) return null;
+            Pattern pattern = Pattern.compile("<([^<>]+)>");
+            Matcher m = pattern.matcher(command);
+            Set<String> names = new LinkedHashSet<>();
+            while (m.find()) {
+                String name = m.group(1).trim();
+                if (!name.isEmpty()) names.add(name);
+            }
+            if (names.isEmpty()) return command;
+
+            Map<String, String> values = new LinkedHashMap<>();
+            BufferedReader br = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
+            for (String name : names) {
+                System.out.print("Enter value for " + name + ": ");
+                System.out.flush();
+                String val = br.readLine();
+                if (val == null) val = "";
+                values.put(name, val);
+            }
+            // Replace all placeholders using collected values
+            m = pattern.matcher(command);
+            StringBuffer sb = new StringBuffer();
+            while (m.find()) {
+                String name = m.group(1).trim();
+                String val = values.getOrDefault(name, "");
+                m.appendReplacement(sb, Matcher.quoteReplacement(val));
+            }
+            m.appendTail(sb);
+            return sb.toString();
         }
 
         private int runCommand(String command) {
