@@ -50,6 +50,13 @@
       <artifactId>jline-terminal-jna</artifactId>
       <version>3.26.3</version>
     </dependency>
+
+      <!-- The following is for String Example usage only -->
+      <dependency>
+          <groupId>org.apache.commons</groupId>
+          <artifactId>commons-lang3</artifactId>
+          <version>3.17.0</version>
+      </dependency>
   </dependencies>
 
   <build>
