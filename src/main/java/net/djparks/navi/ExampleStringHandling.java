@@ -3,6 +3,7 @@ package net.djparks.navi;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.List;
+import java.util.Optional;
 
 public class ExampleStringHandling {
     public static void main(String[] args) {
@@ -46,7 +47,9 @@ public class ExampleStringHandling {
         String formatted = "Hello, %s!".formatted( "world");
         System.out.println(formatted);
 
-        // Using Apache Commons checking null safety.  !! Check difference
+        // Using Apache Commons checking null safety.
+        //  isEmpty checks if a string is either null or has a length of zero.
+        //  isBlank checks if a string is either null, empty or contains only whitespace.
         if (StringUtils.isNotEmpty(trimmed)) {
             System.out.println("trimmed is not empty");
         }
@@ -55,6 +58,21 @@ public class ExampleStringHandling {
         // Set default value
         String defaultValue = StringUtils.defaultIfBlank(trimmed, "default");
         System.out.println(defaultValue);
+        
+        // Null safety, Optional and blank
+        User user = createUser();
+        Optional.ofNullable(user)// Or use Optional.of(createUser()) if user is not null
+                    .map(User::name)
+                    .orElse("Guest");
 
+    }
+
+    // Simple User class to demonstrate Optional and null-safety handling.
+        private record User(String name, String email) {
+    }
+
+    // Factory method that creates a User prefilled with sample data.
+    private static User createUser() {
+        return new User("Alice", "alice@example.com");
     }
 }
