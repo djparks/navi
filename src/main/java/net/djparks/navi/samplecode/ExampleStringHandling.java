@@ -1,4 +1,4 @@
-package net.djparks.navi;
+package net.djparks.navi.samplecode;
 
 import org.apache.commons.lang3.StringUtils;
 
