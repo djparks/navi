@@ -6,7 +6,7 @@
 ; #: should be descriptions of commands
 ; ;: are ignored. You can use them for meta-comments
 ; $: should contain commands that generate a list of possible values for a given argument
-; @: should contain tags whose associated cheatsheet you want to base on
+
 
 ;;;;;;;;;;;;;;;;;;;;
 ;;;;; VS Code starts
