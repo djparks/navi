@@ -1,0 +1,32 @@
+% dparks misc
+; https://github.com/denisidoro/navi/blob/master/docs/cheatsheet_syntax.md
+; Lines starting with:
+
+; %: determine the start of a new cheatsheet and should contain tags
+; #: should be descriptions of commands
+; ;: are ignored. You can use them for meta-comments
+; $: should contain commands that generate a list of possible values for a given argument
+; @: should contain tags whose associated cheatsheet you want to base on
+
+;;;;;;;;;;;;;;;;;;;;
+;;;;; VS Code starts
+# Edit Navi Cheatsheets in VS Code
+code ~/navi/
+
+# Edit Scratch in VS Code
+code ~/Documents/scratch
+
+# Edit zshrc
+code ~/.zshrc
+
+#Edit github notes Documents
+code ~/projects/notes/
+
+# List all directory contents sorted by time edited
+ls -alt
+
+# List clear then list
+ls <folder>; ls <folder>
+
+# Start JAR project mvn
+mvn archetype:generate -DgroupId=<group> -DartifactId=<artifact> -DarchetypeArtifactId=maven-archetype-quickstart -DarchetypeVersion=1.5 -DinteractiveMode=false
