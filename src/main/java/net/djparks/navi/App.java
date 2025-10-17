@@ -65,7 +65,7 @@ public class App {
                         if (command != null && command.contains("<") && command.contains(">")) {
                             restoreTerminal(terminal, original);
                             try {
-                                command = prompter.prompt(command);
+                                command = prompter.prompt(command, it.placeholderOptions());
                             } catch (IOException e) {
                                 System.err.println("Failed to read parameters: " + e.getMessage());
                                 return;

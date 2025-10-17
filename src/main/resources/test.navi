@@ -25,6 +25,7 @@ code ~/projects/notes/
 # List all directory contents sorted by time edited
 ls -alt
 
+$$ folder: ~/Documents|~/projects
 # List clear then list
 ls <folder>; ls <folder>
 
