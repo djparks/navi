@@ -10,6 +10,8 @@
     <properties>
         <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <commons-lang3.version>3.18.0</commons-lang3.version>
+        <jline-terminal.version>3.26.3</jline-terminal.version>
     </properties>
 
     <dependencies>
@@ -17,18 +19,18 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
-            <version>3.17.0</version>
+            <version>${commons-lang3.version}</version>
         </dependency>
         <!-- Terminal handling for raw mode and key processing -->
         <dependency>
             <groupId>org.jline</groupId>
             <artifactId>jline-terminal</artifactId>
-            <version>3.26.3</version>
+            <version>${jline-terminal.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jline</groupId>
             <artifactId>jline-terminal-jna</artifactId>
-            <version>3.26.3</version>
+            <version>${jline-terminal.version}</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
